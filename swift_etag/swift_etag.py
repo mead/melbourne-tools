@@ -21,13 +21,6 @@ def raise_error(error_msg):
     print error_msg
     exit
 
-def md5sum(filename):
-    md5 = hashlib.md5()
-    with open(filename, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b''):
-            md5.update(chunk)
-    return md5.hexdigest()
-                    
 def split(filename,segment_size,create_segments):
     global hash
     hash = ""
@@ -106,7 +99,6 @@ def split(filename,segment_size,create_segments):
             except (OSError, IOError), e:
                 raise_error("Error closing file")
         
-        #md5 = md5sum(segment_filename)
         md5_seg = md5hash.hexdigest()
         hash = hash + md5_seg
         print "Checksum for segment " + str(segment_count) + " : " + md5_seg
@@ -125,9 +117,7 @@ def main():
     parser.add_argument('segment_size',help='Segment Size in Bytes', type=int)
     parser.add_argument('-s', action='store_true',help='write the individual segments to files on disk')
     args = parser.parse_args()
-   # filename = sys.argv[1]
-   # segment_size = int(sys.argv[2])
-#    print md5sum(sys.argv[1])
     split(args.filename, args.segment_size,args.s)
+
 if __name__ == "__main__":
     main()
