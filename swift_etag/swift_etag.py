@@ -30,6 +30,7 @@ def split(filename,segment_size,create_segments):
     
     try:
         filesize = os.path.getsize(filename)
+        print ""
         print "Processing: " + filename
         print "File Size (Bytes): " + str(filesize)
     except (OSError), e:
@@ -116,7 +117,6 @@ def main():
     parser.add_argument('segment_size',help='Segment Size in Bytes', type=int)
     parser.add_argument('-s', action='store_true',help='write the individual segments to files on disk')
     args = parser.parse_args()
-    print args.filename
    # filename = sys.argv[1]
    # segment_size = int(sys.argv[2])
 #    print md5sum(sys.argv[1])
