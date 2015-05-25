@@ -89,7 +89,7 @@ def split(filename,segment_size):
         hash = hash + md5
         print "Etag for segment: " + md5
         
-        os.remove(segment_filename)
+        #os.remove(segment_filename)
         segment_count = segment_count + 1
      
     print "Concatinated Etags: " + hash
