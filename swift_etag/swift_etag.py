@@ -3,8 +3,11 @@ import hashlib
 import sys
 import os
 import math
+import argparse
 
-CHUNK_SIZE=10000
+#MD5 Chunk size, must be a multiple of 128
+#How many bytes are read per itteration.
+CHUNK_SIZE=16384
 
 def raise_error(error_msg):
     print error_msg
@@ -17,7 +20,7 @@ def md5sum(filename):
             md5.update(chunk)
     return md5.hexdigest()
                     
-def split(filename,segment_size):
+def split(filename,segment_size,create_segments):
     global hash
     hash = ""
     try:
@@ -27,7 +30,8 @@ def split(filename,segment_size):
     
     try:
         filesize = os.path.getsize(filename)
-        print filesize
+        print "Processing: " + filename
+        print "File Size (Bytes): " + str(filesize)
     except (OSError), e:
         raise_error("File size could not be determined")
 
@@ -42,16 +46,21 @@ def split(filename,segment_size):
         read_bytes = 0
 
         segment_filename = filename + "_segment_" + str(segment_count)
-        print "Create segment: " + segment_filename
         
-        try:
-            f_segment = open(segment_filename, 'wb')
-        except (OSError, IOError), e:
-            raise_error("unable to create new segment")
+        if create_segments:
+            print "Create segment: " + segment_filename
+        md5hash = hashlib.md5();
+        
+        #If create_segments then open a file to store current segment
+        if create_segments:
+            try:
+                f_segment = open(segment_filename, 'wb')
+            except (OSError, IOError), e:
+                raise_error("unable to create new segment")
         #Adjust segment size if we're near the end of the file
 
-        if ((read_bytes_total + segment_size) > filesize):
-            segment_size = filesize - read_bytes_total
+        #if ((read_bytes_total + segment_size) > filesize):
+        #    segment_size = filesize - read_bytes_total
 
         #Read and write data to each segment
 
@@ -66,41 +75,51 @@ def split(filename,segment_size):
             #Read the bytes
             try:
                 chunk = f.read(n_bytes)
+                md5hash.update(chunk)
             except (OSError, IOError), e:
                 raise_error("Error reading from file")
             
-            #Write the bytes
-            try:
-                f_segment.write(chunk)
-            except (OSError, IOError), e:
-                raise_error("Error reading from file")
+            if create_segments:
+                #Write the bytes to segment
+                try:
+                    f_segment.write(chunk)
+                except (OSError, IOError), e:
+                    raise_error("Error writing to file")
             
 
             #Update number of bytes read/written
             read_bytes = read_bytes + n_bytes
             read_bytes_total = read_bytes + n_bytes
 
-        try:
-            f_segment.close()
-        except (OSError, IOError), e:
-            raise_error("Error closing file")
+        if create_segments:
+            try:
+                f_segment.close()
+            except (OSError, IOError), e:
+                raise_error("Error closing file")
         
-        md5 = md5sum(segment_filename)
-        hash = hash + md5
-        print "Etag for segment: " + md5
+        #md5 = md5sum(segment_filename)
+        md5_seg = md5hash.hexdigest()
+        hash = hash + md5_seg
+        print "Checksum for segment " + str(segment_count) + " : " + md5_seg
         
         #os.remove(segment_filename)
         segment_count = segment_count + 1
      
-    print "Concatinated Etags: " + hash
+    #print "Concatinated Etags: " + hash
     m = hashlib.md5()
     m.update(hash)
-    print "Etag of Concatinated Etags: " + m.hexdigest()
+    print "Etag of Concatinated Checksums: " + m.hexdigest()
 
 def main():
-    filename = sys.argv[1]
-    segment_size = int(sys.argv[2])
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('filename',help='File to segment and calculate hash')
+    parser.add_argument('segment_size',help='Segment Size in Bytes', type=int)
+    parser.add_argument('-s', action='store_true',help='write the individual segments to files on disk')
+    args = parser.parse_args()
+    print args.filename
+   # filename = sys.argv[1]
+   # segment_size = int(sys.argv[2])
 #    print md5sum(sys.argv[1])
-    split(filename, segment_size)
+    split(args.filename, args.segment_size,args.s)
 if __name__ == "__main__":
     main()
