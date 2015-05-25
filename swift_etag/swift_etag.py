@@ -1,4 +1,12 @@
 #!/usr/bin/python
+
+#Author: Justin Mammarella
+#Organisation: University of Melbourne
+#Date: 25/05/2015
+#Description: Segment a local file and calculate MD5 checksums of each segment.
+#             Calculate OpenStack Swift Etag Checksum for segments
+#             Useful for validating uploaded segmented objects with original file.
+
 import hashlib
 import sys
 import os
