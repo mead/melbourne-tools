@@ -43,6 +43,10 @@ def split(filename,segment_size,create_segments):
     #Total number of segments is
     number_of_segments = math.floor(filesize / segment_size) + 1
 
+    #Hash for the complete file
+
+    filehash = hashlib.md5();
+
     while segment_count < number_of_segments:
 
         read_bytes = 0
@@ -78,6 +82,7 @@ def split(filename,segment_size,create_segments):
             try:
                 chunk = f.read(n_bytes)
                 md5hash.update(chunk)
+                filehash.update(chunk)
             except (OSError, IOError), e:
                 raise_error("Error reading from file")
             
@@ -101,7 +106,7 @@ def split(filename,segment_size,create_segments):
         
         md5_seg = md5hash.hexdigest()
         hash = hash + md5_seg
-        print "Checksum for segment " + str(segment_count) + " : " + md5_seg
+        print "Checksum for segment " + str(segment_count) + ": " + md5_seg
         
         #os.remove(segment_filename)
         segment_count = segment_count + 1
@@ -109,7 +114,9 @@ def split(filename,segment_size,create_segments):
     #print "Concatinated Etags: " + hash
     m = hashlib.md5()
     m.update(hash)
+
     print "Etag of Concatinated Checksums: " + m.hexdigest()
+    print "MD5 Checksum: " + filehash.hexdigest()
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
