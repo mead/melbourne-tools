@@ -115,7 +115,7 @@ def split(filename,segment_size,create_segments):
     m = hashlib.md5()
     m.update(hash)
 
-    print "Etag of Concatinated Checksums: " + m.hexdigest()
+    print "Etag of Concatenated Checksums: " + m.hexdigest()
     print "MD5 Checksum: " + filehash.hexdigest()
 
 def main():
