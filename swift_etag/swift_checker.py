@@ -56,6 +56,14 @@ def swift_client():
 
     return swift_conn
 
+def md5sum(filename):
+    md5 = hashlib.md5()
+    with open(filename, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b''):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
 def split(filename,segment_size,create_segments, segment_container, swift_etag):
     global hash
     hash = ""
@@ -159,32 +167,82 @@ def split(filename,segment_size,create_segments, segment_container, swift_etag):
     print "Calculated ETag: " + m.hexdigest()
     print "Swift ETag: " + swift_etag
 
+def compare_file_with_object(sc,filename,container,segments, objectname):
+
+   swift_etag = sc.head_object(container, objectname)['etag']
+    #print sc.head_object(args.container, args.object)
+
+   #If the object has a manifest, then it is a segmented file
+   if 'x-object-manifest' in sc.head_object(container, objectname):
+       #Get the segment container name so that we can list the segments for the object
+       segment_container_name = sc.head_object(container, objectname)['x-object-manifest'].split('/')[0]
+       segment_container = []
+       #List all the objects in the container and store the assosciated hash, name, bytes in a data structure
+       for o in sc.get_container(segment_container_name, full_listing='True')[1]:
+           x = swift_obj(o['name'],o['hash'],o['bytes'])
+           segment_container.append(x)
+       #Begin the segmentation locally, using the segment size obtianed from the first object in the segment container
+       #Supply the segment_container data structure such that comparisons can be made between calculated hash and swift value.
+       split(filename, segment_container[0].object_bytes,segments, segment_container, swift_etag)
+   #The object has no manifest, therefore it is not segmented.
+   else:
+   #Calculate the md5hash locally and compare against the ETag.
+       md5hash = md5sum(filename)
+       if swift_etag == md5hash:
+           print "Match: " + swift_etag + " || " + md5hash
+                 
+       else:
+           print "Error: " + swift_etag + " || " + md5hash            
+
+
 def main():
+
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('filename',help='File to segment and calculate hash')
+
+       
+    parser.add_argument('path',help='The full path to a file or directory that you would like to check against a swift object or container')
     parser.add_argument('container',help='Swift container to check')
-    parser.add_argument('object',help='Object within container to compare')
-    parser.add_argument('segment_size',help='Segment Size in Bytes', type=int)
+    parser.add_argument('object',help='A single object within container to compare against',nargs='?')
+    
     parser.add_argument('-s', action='store_true',help='write the individual segments to files on disk')
     args = parser.parse_args()
-    #split(args.filename, args.segment_size,args.s)
-    sc = swift_client()
-    print sc.get_account()[1]
-    swift_etag = sc.head_object(args.container, args.object)['etag']
-    print sc.head_object(args.container, args.object)
-    if 'x-object-manifest' in sc.head_object(args.container, args.object):
-        print "We got a segmented object here"
-        print sc.head_object(args.container, args.object)['x-object-manifest'].split('/')[0]
-        segment_container_name = sc.head_object(args.container, args.object)['x-object-manifest'].split('/')[0]
-        segment_container = []
-        for o in sc.get_container(segment_container_name, full_listing='True')[1]:
-            print o
-            x = swift_obj(o['name'],o['hash'],o['bytes'])
-            print x
-            segment_container.append(x)
-        split(args.filename, segment_container[0].object_bytes,args.s, segment_container, swift_etag)
+    
+    try:
+        sc = swift_client()
+    except:
+        raise_error("Swift connection failed")
+
+    #If path is a directory, then scan all files and folders in directory recursively.
+    head_dir = os.path.basename(os.path.normpath(args.path))
+    if os.path.isdir(args.path):
+        print "Checking directory"
+        for root, dirs, files in os.walk(args.path, topdown=True):
+                #print root, "Blah root"
+            #print os.path.split(root)[1], "blah2"
+            for name in files:
+                cur_object = os.path.join(head_dir, os.path.split(root)[1], name)
+                print "Checking", cur_object, "against ", os.path.join(root,name)
+                
+                compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
+            
+                
+            #print name
+            #for name in dirs:
+                #print(os.path.join(root, name))
+                #print name
+        
+        
+    #If path is a file then check only the file
+    elif os.path.isfile(args.path):
+        print "Checking file"
+        if not args.object:
+            raise_error("No swift object specified")
+        compare_file_with_object(sc, args.path, args.container,args.s, args.object)
 
 
+    exit
+
+    #print sc.get_account()[1]
 
 if __name__ == "__main__":
     main()
