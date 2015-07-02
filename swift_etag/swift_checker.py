@@ -189,6 +189,7 @@ def compare_file_with_object(sc,filename,container,segments, objectname):
    #Calculate the md5hash locally and compare against the ETag.
        md5hash = md5sum(filename)
        if swift_etag == md5hash:
+           print "Test: ", objectname, " || ", filename
            print "Match: " + swift_etag + " || " + md5hash
                  
        else:
@@ -202,7 +203,11 @@ def main():
        
     parser.add_argument('path',help='The full path to a file or directory that you would like to check against a swift object or container')
     parser.add_argument('container',help='Swift container to check')
-    parser.add_argument('object',help='A single object within container to compare against',nargs='?')
+    parser.add_argument('object_or_path', help='For file comparison this is the object name in swift to compare against. For directory comparison, this is an optional root path to append to file names during comparison',nargs='?')
+    
+    #group = parser.add_mutually_exclusive_group(required=True)    
+    #group.add_argument('object_name',help='For file comparison this is object name. For directory comparison this ',nargs='?')
+    #group.add_argument('root_path',help='For file comparison this is object name. For directory comparison this ',nargs='?')
     
     parser.add_argument('-s', action='store_true',help='write the individual segments to files on disk')
     args = parser.parse_args()
@@ -212,19 +217,59 @@ def main():
     except:
         raise_error("Swift connection failed")
 
+    savedPath = os.getcwd()
+
     #If path is a directory, then scan all files and folders in directory recursively.
     head_dir = os.path.basename(os.path.normpath(args.path))
+    
+    
     if os.path.isdir(args.path):
+        
+        if not os.path.isabs(args.path):
+            #Change directory to one level above search directory
+            os.chdir(os.path.split(os.path.abspath(args.path))[0])
+       # else:
+        
+        #If path is absolute path, then assume the user wants to use the absolute path as the prefix for the container object name"
+        #if os.abspath(args.path):
+            
+        search_dir = args.path
+        
+        
         print "Checking directory"
-        for root, dirs, files in os.walk(args.path, topdown=True):
+        for root, dirs, files in os.walk(search_dir, topdown=True):
                 #print root, "Blah root"
             #print os.path.split(root)[1], "blah2"
+            print "root", root
             for name in files:
-                cur_object = os.path.join(head_dir, os.path.split(root)[1], name)
-                print "Checking", cur_object, "against ", os.path.join(root,name)
+                    #print head_dir
+                #cur_object = os.path.join(args.object_or_path, root.lstrip('/'), name)
+                #print os.path.split(root)[1], name
+                #print "THIS root", root
                 
+                print "blahhhhh", root, args.path, root.strip(args.path)
+                 
+                #If absolute path, use full path name for swift object name
+                #if os.path.isabs(args.path):
+                cur_object = os.path.join(root.lstrip('.').lstrip('/').lstrip('\\'),name)
                 compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
-            
+                #If relative path, use only the 
+              #  else:
+              #      cur_object = os.path.join(root.lstrip('/').lstrip('\\'),name)
+              #      compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
+
+                #if args.object_or_path:
+              #      compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, os.path.join(args.object_or_path.strip("/"),root.lstrip('./'),name))
+              #  else:
+              #      compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
+        
+        #If our current working directory does not equal our saved/original path, then cd back to the saved path
+        if os.getcwd() != savedPath: 
+            os.chdir(savedPath)
+      
+        
+        #os.chdir(args.path)
+
                 
             #print name
             #for name in dirs:
@@ -235,11 +280,11 @@ def main():
     #If path is a file then check only the file
     elif os.path.isfile(args.path):
         print "Checking file"
-        if not args.object:
+        if not args.arg3:
             raise_error("No swift object specified")
-        compare_file_with_object(sc, args.path, args.container,args.s, args.object)
+        compare_file_with_object(sc, args.path, args.container,args.s, args.object_or_path)
 
-
+    
     exit
 
     #print sc.get_account()[1]
