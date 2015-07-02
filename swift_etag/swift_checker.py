@@ -1,17 +1,17 @@
 #!/usr/bin/python
 
+#Name: Swift Checker
 #Author: Justin Mammarella
 #Organisation: University of Melbourne
-#Date: 25/05/2015
-#Description: Segment a local file and calculate MD5 checksums of each segment.
-#             Calculate OpenStack Swift Etag Checksum for segments
-#             Useful for validating uploaded segmented objects with original file.
+#Date: 01/06/2015
+#Description: Compare local files or folders with objects stored in swift containers 
 
 import hashlib
 import sys
 import os
 import math
 import argparse
+import textwrap
 
 from swiftclient import client as swiftclient  
 
@@ -168,42 +168,73 @@ def split(filename,segment_size,create_segments, segment_container, swift_etag):
     print "Swift ETag: " + swift_etag
 
 def compare_file_with_object(sc,filename,container,segments, objectname):
-
-   swift_etag = sc.head_object(container, objectname)['etag']
+        
     #print sc.head_object(args.container, args.object)
 
-   #If the object has a manifest, then it is a segmented file
-   if 'x-object-manifest' in sc.head_object(container, objectname):
-       #Get the segment container name so that we can list the segments for the object
-       segment_container_name = sc.head_object(container, objectname)['x-object-manifest'].split('/')[0]
-       segment_container = []
-       #List all the objects in the container and store the assosciated hash, name, bytes in a data structure
-       for o in sc.get_container(segment_container_name, full_listing='True')[1]:
-           x = swift_obj(o['name'],o['hash'],o['bytes'])
-           segment_container.append(x)
-       #Begin the segmentation locally, using the segment size obtianed from the first object in the segment container
-       #Supply the segment_container data structure such that comparisons can be made between calculated hash and swift value.
-       split(filename, segment_container[0].object_bytes,segments, segment_container, swift_etag)
-   #The object has no manifest, therefore it is not segmented.
-   else:
-   #Calculate the md5hash locally and compare against the ETag.
-       md5hash = md5sum(filename)
-       if swift_etag == md5hash:
-           print "Test: ", objectname, " || ", filename
-           print "Match: " + swift_etag + " || " + md5hash
-                 
-       else:
-           print "Error: " + swift_etag + " || " + md5hash            
+    try:
+        swift_etag = sc.head_object(container, objectname)['etag']
 
+    #If the object has a manifest, then it is a segmented file
+        if 'x-object-manifest' in sc.head_object(container, objectname):
+    #Get the segment container name so that we can list the segments for the object
+            segment_container_name = sc.head_object(container, objectname)['x-object-manifest'].split('/')[0]
+            segment_container = []
+    #List all the objects in the container and store the assosciated hash, name, bytes in a data structure
+            for o in sc.get_container(segment_container_name, full_listing='True')[1]:
+                x = swift_obj(o['name'],o['hash'],o['bytes'])
+                segment_container.append(x)
+    #Begin the segmentation locally, using the segment size obtianed from the first object in the segment container
+    #Supply the segment_container data structure such that comparisons can be made between calculated hash and swift value.
+            split(filename, segment_container[0].object_bytes,segments, segment_container, swift_etag)
+    #The object has no manifest, therefore it is not segmented.
+   
+        else:
+    #Calculate the md5hash locally and compare against the ETag.
+            md5hash = md5sum(filename)
+            if swift_etag == md5hash:
+                print "Test: ", objectname, " || ", filename
+                print "Match: " + swift_etag + " || " + md5hash 
+            else:
+                print "Error: " + swift_etag + " || " + md5hash 
+    except:
+        error_dict = vars(sys.exc_info()[1])
+        if error_dict['http_reason'] == 'Not Found':
+            print "Swift Error: object not found,", objectname
+        else:
+            print error_dict
 
 def main():
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog='Swift Checker',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='''Swift checker test''',
+        epilog=textwrap.dedent('''\
+                Single File Comparison:
 
-       
+                    1: Compare local file with object sharing the same name in swift container
+                       Example: ./swift_checker.py filename container
+
+                    2: Compare local file with object having a different name or path
+                       Example: ./swift_checker.py filename container object_name
+                
+                Directory Comparison:
+
+                    3: Compare files/folders contained within local directory with objects in swift container
+                       Example: ./swift_checker.py /absolute_path/to_my_files container 
+
+                    4: Compare files/folders contained within path with objects in swift container specifying object prefix
+                       Example: ./swift_checker.py /path_to_my_files container /my_objects_start_with_this_prefix/
+
+            ''')
+
+
+    )
+   
     parser.add_argument('path',help='The full path to a file or directory that you would like to check against a swift object or container')
-    parser.add_argument('container',help='Swift container to check')
-    parser.add_argument('object_or_path', help='For file comparison this is the object name in swift to compare against. For directory comparison, this is an optional root path to append to file names during comparison',nargs='?')
+    parser.add_argument('container',help='Name of the Swift container to check')
+    parser.add_argument('object_or_path', help='''Optional: For file comparison this is the specific object name in swift to compare against. 
+                        For directory comparison, this is an optional prefix/path to append to the beggining of file names during comparison''',nargs='?')
     
     #group = parser.add_mutually_exclusive_group(required=True)    
     #group.add_argument('object_name',help='For file comparison this is object name. For directory comparison this ',nargs='?')
@@ -225,45 +256,20 @@ def main():
     
     if os.path.isdir(args.path):
         
-        if not os.path.isabs(args.path):
-            #Change directory to one level above search directory
-            os.chdir(os.path.split(os.path.abspath(args.path))[0])
-       # else:
-        
-        #If path is absolute path, then assume the user wants to use the absolute path as the prefix for the container object name"
-        #if os.abspath(args.path):
+        os.chdir(os.path.abspath(args.path))
             
-        search_dir = args.path
-        
-        
-        print "Checking directory"
-        for root, dirs, files in os.walk(search_dir, topdown=True):
-                #print root, "Blah root"
-            #print os.path.split(root)[1], "blah2"
-            print "root", root
+        print "Checking directory:", os.getcwd()
+        for root, dirs, files in os.walk('.', topdown=True):
             for name in files:
-                    #print head_dir
-                #cur_object = os.path.join(args.object_or_path, root.lstrip('/'), name)
-                #print os.path.split(root)[1], name
-                #print "THIS root", root
+     #If a path is specified in the 3rd argument, append it as a path to the start of the swift object name 
+                if args.object_or_path:
+                    cur_object = os.path.join(args.object_or_path.lstrip('.').lstrip('/').lstrip('\\'),root.lstrip('.').lstrip('/').lstrip('\\'),name) 
+     #Use absolute path as swift object name
+                else: 
+                    cur_object = os.path.join(root.lstrip('.').lstrip('/').lstrip('\\'),name)
                 
-                print "blahhhhh", root, args.path, root.strip(args.path)
-                 
-                #If absolute path, use full path name for swift object name
-                #if os.path.isabs(args.path):
-                cur_object = os.path.join(root.lstrip('.').lstrip('/').lstrip('\\'),name)
                 compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
-                #If relative path, use only the 
-              #  else:
-              #      cur_object = os.path.join(root.lstrip('/').lstrip('\\'),name)
-              #      compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
-
-                #if args.object_or_path:
-              #      compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, os.path.join(args.object_or_path.strip("/"),root.lstrip('./'),name))
-              #  else:
-              #      compare_file_with_object(sc, os.path.join(root,name), args.container,args.s, cur_object)
         
-        #If our current working directory does not equal our saved/original path, then cd back to the saved path
         if os.getcwd() != savedPath: 
             os.chdir(savedPath)
       
@@ -280,9 +286,10 @@ def main():
     #If path is a file then check only the file
     elif os.path.isfile(args.path):
         print "Checking file"
-        if not args.arg3:
-            raise_error("No swift object specified")
-        compare_file_with_object(sc, args.path, args.container,args.s, args.object_or_path)
+        if not args.object_or_path:
+            compare_file_with_object(sc, args.path, args.container,args.s, os.path.split(args.path)[1])
+        else:
+            compare_file_with_object(sc, args.path, args.container,args.s, args.object_or_path)
 
     
     exit
