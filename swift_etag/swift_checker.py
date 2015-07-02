@@ -99,9 +99,6 @@ def split(filename,segment_size, segment_container, swift_etag):
     
     try:
         filesize = os.path.getsize(filename)
-        print ""
-        print "Processing: " + filename
-        print "File Size (Bytes): " + str(filesize)
     except (OSError), e:
         raise_error("File size could not be determined")
 
@@ -149,10 +146,10 @@ def split(filename,segment_size, segment_container, swift_etag):
         hash = hash + md5_seg
 
         if md5_seg == segment_container[segment_count].object_hash:
-            print '{: <10} {: >50} {: >4} {: <50}'.format("Match: ", md5_seg, " || ", segment_container[segment_count].object_hash)
+            print '{: <10} {: >4} {: >50} {: >4} {: <50}'.format("Segment Match: ", segment_count, md5_seg, " || ", segment_container[segment_count].object_hash)
                   
         else:
-            print '{: <10} {: >50} {: >4} {: <50}'.format("Error: ", + md5_seg, + " || " + segment_container[segment_count].object_hash)
+            print '{: <10} {: >4} {: >50} {: >4} {: <50}'.format("Error: ", segement_count,  md5_seg, + " || " + segment_container[segment_count].object_hash)
 
         #os.remove(segment_filename)
         segment_count = segment_count + 1
@@ -160,10 +157,10 @@ def split(filename,segment_size, segment_container, swift_etag):
     #print "Concatinated Etags: " + hash
     m = hashlib.md5()
     m.update(hash)
-    print "Calculated MD5 Checksum: " + filehash.hexdigest()
     print " "
-    print "Calculated ETag: " + m.hexdigest()
-    print "Swift ETag: " + swift_etag
+    print '{: <10} {: >4} {: >50} {: >4} {: <50}'.format("Etag Comparison: ","    ", filehash.hexdigest(), " || ", swift_etag.strip('"'))  
+    print "Local File MD5 Hash: ", m.hexdigest() 
+    print " "
 
 def compare_file_with_object(sc,filename,container, objectname):
         
@@ -174,7 +171,12 @@ def compare_file_with_object(sc,filename,container, objectname):
 
     #If the object has a manifest, then it is a segmented file
         if 'x-object-manifest' in sc.head_object(container, objectname):
-    #Get the segment container name so that we can list the segments for the object
+    
+            print "Calculating Segments: " + os.path.abspath(filename)
+            print '{: <10} {: >50} {: >4} {: <50}'.format("Test: ", objectname, " || ", os.path.abspath(filename))
+                
+        #Get thesegment container name so that we can list the segments for the object
+
             segment_container_name = sc.head_object(container, objectname)['x-object-manifest'].split('/')[0]
             segment_container = []
     #List all the objects in the container and store the assosciated hash, name, bytes in a data structure
@@ -188,8 +190,8 @@ def compare_file_with_object(sc,filename,container, objectname):
    
         else:
     #Calculate the md5hash locally and compare against the ETag.
+            print '{: <10} {: >50} {: >4} {: <50}'.format("Test: ", objectname, " || ", os.path.abspath(filename)) 
             md5hash = md5sum(filename)
-            print '{: <10} {: >50} {: >4} {: <50}'.format("Test: ", objectname, " || ", os.path.abspath(filename))
             if swift_etag == md5hash:
                 print '{: <10} {: >50} {: >4} {: <50}'.format("Match: ", md5hash, " || ", swift_etag) 
             else:
@@ -257,7 +259,8 @@ def main():
         
         os.chdir(os.path.abspath(args.path))
             
-        print "Checking directory:", os.getcwd()
+        print "Checking files in local directory:", os.getcwd()
+        print " "
         for root, dirs, files in os.walk('.', topdown=True):
             for name in files:
      #If a path is specified in the 3rd argument, append it as a path to the start of the swift object name 
