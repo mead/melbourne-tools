@@ -149,10 +149,10 @@ def split(filename,segment_size, segment_container, swift_etag):
         hash = hash + md5_seg
 
         if md5_seg == segment_container[segment_count].object_hash:
-                print "Match: " + md5_seg + " || " + segment_container[segment_count].object_hash
+            print '{: <10} {: >50} {: >4} {: <50}'.format("Match: ", md5_seg, " || ", segment_container[segment_count].object_hash)
                   
         else:
-            print "Error: " + md5_seg + " || " + segment_container[segment_count].object_hash
+            print '{: <10} {: >50} {: >4} {: <50}'.format("Error: ", + md5_seg, + " || " + segment_container[segment_count].object_hash)
 
         #os.remove(segment_filename)
         segment_count = segment_count + 1
@@ -189,9 +189,9 @@ def compare_file_with_object(sc,filename,container, objectname):
         else:
     #Calculate the md5hash locally and compare against the ETag.
             md5hash = md5sum(filename)
+            print '{: <10} {: >50} {: >4} {: <50}'.format("Test: ", objectname, " || ", os.path.abspath(filename))
             if swift_etag == md5hash:
-                print "Test: ", objectname, " || ", os.path.abspath(filename)
-                print "Match: " + md5hash + " || " + swift_etag 
+                print '{: <10} {: >50} {: >4} {: <50}'.format("Match: ", md5hash, " || ", swift_etag) 
             else:
                 print "Error: " + md5hash + " || " + swift_etag 
     except:
