@@ -1,10 +1,18 @@
 #!/usr/bin/python
 
-#Name: Swift Checker
+#Name: SwiftChecker
 #Author: Justin Mammarella
 #Organisation: University of Melbourne
 #Date: 01/06/2015
 #Description: Compare local files or folders with objects stored in swift containers 
+#             SwiftChecker detects whether or not a swift object is stored as a segmented
+#             object. If the object is segmented, the local file is segmeneted and 
+#             the individual md5 hashes for each segment are calculated. The swift
+#             ETag value is also calculated locally.
+#             These values are used to compare the local file against the external swift
+#             object
+#             The script supports full directory scanning. Meaning, each file in a specfied
+#             directory is compared against a objects stored in a swift container.
 
 import hashlib
 import sys
@@ -162,7 +170,7 @@ def split(filename,segment_size, segment_container):
             display_output("Seg: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
                   
         else:
-            display_output("Error: ", segement_count, segment_container[segment_count].object_hash, md5_seg)
+            display_output("Err: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
 
         #os.remove(segment_filename)
         segment_count = segment_count + 1
@@ -177,7 +185,6 @@ def split(filename,segment_size, segment_container):
 def compare_file_with_object(sc,filename,container, objectname):
         
     #print sc.head_object(args.container, args.object)
-    print filename, "File"
     try:
         swift_etag = sc.head_object(container, objectname)['etag']
 
@@ -206,17 +213,15 @@ def compare_file_with_object(sc,filename,container, objectname):
     #Calculate the md5hash locally and compare against the ETag.
             display_output("Test: ","", os.path.abspath(filename), objectname) 
             local_hash = md5sum(filename)
+    
         swift_etag = swift_etag.strip('"')
         display_output("Etag:","", swift_etag, local_hash)
         display_break("-")
+        
         if swift_etag == local_hash:
-            print "Success: Local file matches swift object"
-            print " "
             return 0
         else:
-            print "Fail: Local file does not match swift object"
             return 1
-        print ""
     except:
         print sys.exc_info()
         error_dict = vars(sys.exc_info()[1])
@@ -277,8 +282,10 @@ def main():
     #If path is a directory, then scan all files and folders in directory recursively.
     head_dir = os.path.basename(os.path.normpath(args.path))
     
-    errors = 0;
+    errors = 0
     jobs = []
+    files_succeeded = []
+    files_failed = []
 
     if os.path.isdir(args.path):
         
@@ -289,10 +296,12 @@ def main():
             for name in files:
      #If a path is specified in the 3rd argument, append it as a path to the start of the swift object name 
                 if args.object_or_path:
-                    cur_object = os.path.join(args.object_or_path.lstrip('.').lstrip('/').lstrip('\\'),root.lstrip('.').lstrip('/').lstrip('\\'),name) 
+                    cur_object = os.path.join(args.object_or_path.lstrip('.').lstrip('/').lstrip('\\'),
+                                 root.lstrip('.').lstrip('/').lstrip('\\'),name) 
      #Use absolute path as swift object name
                 else: 
                     cur_object = os.path.join(root.lstrip('.').lstrip('/').lstrip('\\'),name)
+     #Store the job in an array to be processed once directory scanning complete
                 j = [sc, os.path.abspath(os.path.join(root,name)), args.container, cur_object]
                 jobs.append(j)  
         if os.getcwd() != savedPath: 
@@ -301,32 +310,47 @@ def main():
         print " "
 
         filecount = 0
+     #Start processing each job
         for j in jobs:
             filecount=filecount+1
             print "Processing:", filecount, "/", len(jobs)
-            errors = errors + compare_file_with_object(j[0],j[1],j[2],j[3])
-        
-        #os.chdir(args.path)
-
-                
-            #print name
-            #for name in dirs:
-                #print(os.path.join(root, name))
-                #print name
-        
+     #Check the current file with swift object
+            if compare_file_with_object(j[0],j[1],j[2],j[3]) == 0:
+                print "Okay: ", j[1]
+                files_succeeded.append(j[1])
+            else:
+                errors = errors + 1 
+                print "Fail: ", j[1]
+                files_failed.append(j[1])
+            print " "
         
     #If path is a file then check only the file
     elif os.path.isfile(args.path):
         print "Checking file"
         display_header() 
         if not args.object_or_path:
-            errors = errors + compare_file_with_object(sc, args.path, args.container, os.path.split(args.path)[1])
+            if compare_file_with_object(sc, args.path, args.container, os.path.split(args.path)[1]) == 0:
+                print "Okay: ", args.path
+            else:
+                print "Fail: ", args.path
+                errors = errors + 1
         else:
-            errors = errors + compare_file_with_object(sc, args.path, args.container, args.object_or_path)
-    
+            if compare_file_with_object(sc, args.path, args.container, args.object_or_path) == 0:
+                print "Okay: ", args.path
+            else:
+                errors = errors + 1
+                print "Fail: ", args.path
+    #Result summary
     print "Summary:"
-    print "Processed: ", len(jobs), "/", len(jobs)
-    print "Errors: ", errors
+    print ""
+    print "Matches:", len(jobs) - errors, "/", len(jobs)
+    for f in files_succeeded:
+        print f
+    print ""
+    print "Fails:", errors, "/", len(jobs)
+    for f in files_failed:
+        print f
+    print ""
 
     exit
 
