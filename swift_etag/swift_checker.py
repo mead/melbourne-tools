@@ -28,7 +28,8 @@ class swift_obj:
 
 def raise_error(error_msg):
     print error_msg
-    sys.exit(1)
+    exit
+    #sys.exit(1)
 
 def display_break(c):
     width = len(OUTPUT_FORMAT.format("","","","","",""))
@@ -36,7 +37,7 @@ def display_break(c):
 
 def display_header():
     display_break('=')
-    display_output("Value", "", "Local File", "Swift Object")
+    display_output("", "", "Local File", "Swift Object")
     display_break('=')
 #print header
 
@@ -114,7 +115,6 @@ def split(filename,segment_size, segment_container):
         filesize = os.path.getsize(filename)
     except (OSError), e:
         raise_error("File size could not be determined")
-
     segment_count = 0
     read_bytes_total = 0
 
@@ -177,7 +177,7 @@ def split(filename,segment_size, segment_container):
 def compare_file_with_object(sc,filename,container, objectname):
         
     #print sc.head_object(args.container, args.object)
-
+    print filename, "File"
     try:
         swift_etag = sc.head_object(container, objectname)['etag']
 
@@ -211,16 +211,21 @@ def compare_file_with_object(sc,filename,container, objectname):
         display_break("-")
         if swift_etag == local_hash:
             print "Success: Local file matches swift object"
+            print " "
+            return 0
         else:
             print "Fail: Local file does not match swift object"
+            return 1
         print ""
     except:
+        print sys.exc_info()
         error_dict = vars(sys.exc_info()[1])
         if error_dict['http_reason'] == 'Not Found':
             print "Swift Error: object not found,", objectname
+            return 1
         else:
             print error_dict
-
+            return 1
 
 def arg_handling():
     parser = argparse.ArgumentParser(
@@ -272,13 +277,14 @@ def main():
     #If path is a directory, then scan all files and folders in directory recursively.
     head_dir = os.path.basename(os.path.normpath(args.path))
     
-    
+    errors = 0;
+    jobs = []
+
     if os.path.isdir(args.path):
         
         os.chdir(os.path.abspath(args.path))
             
         print "Checking files in local directory:", os.getcwd()
-        print " "
         for root, dirs, files in os.walk('.', topdown=True):
             for name in files:
      #If a path is specified in the 3rd argument, append it as a path to the start of the swift object name 
@@ -287,12 +293,18 @@ def main():
      #Use absolute path as swift object name
                 else: 
                     cur_object = os.path.join(root.lstrip('.').lstrip('/').lstrip('\\'),name)
-                
-                compare_file_with_object(sc, os.path.join(root,name), args.container, cur_object)
-        
+                j = [sc, os.path.abspath(os.path.join(root,name)), args.container, cur_object]
+                jobs.append(j)  
         if os.getcwd() != savedPath: 
             os.chdir(savedPath)
-      
+        print "Files in directory:", len(jobs) 
+        print " "
+
+        filecount = 0
+        for j in jobs:
+            filecount=filecount+1
+            print "Processing:", filecount, "/", len(jobs)
+            errors = errors + compare_file_with_object(j[0],j[1],j[2],j[3])
         
         #os.chdir(args.path)
 
@@ -308,11 +320,14 @@ def main():
         print "Checking file"
         display_header() 
         if not args.object_or_path:
-            compare_file_with_object(sc, args.path, args.container, os.path.split(args.path)[1])
+            errors = errors + compare_file_with_object(sc, args.path, args.container, os.path.split(args.path)[1])
         else:
-            compare_file_with_object(sc, args.path, args.container, args.object_or_path)
-
+            errors = errors + compare_file_with_object(sc, args.path, args.container, args.object_or_path)
     
+    print "Summary:"
+    print "Processed: ", len(jobs), "/", len(jobs)
+    print "Errors: ", errors
+
     exit
 
     #print sc.get_account()[1]
