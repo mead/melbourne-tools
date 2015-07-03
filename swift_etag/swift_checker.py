@@ -245,21 +245,26 @@ def arg_handling():
         description='''Swift checker test''',
         epilog=textwrap.dedent('''\
         
-        Single File Comparison:
+        Single File Comparisons:
 
-            1: Compare local file with object sharing the same name in swift container
-               Example: ./swift_checker.py filename container
+            1. Example: Compare local file with object sharing the same name in swift container
+               
+               ./swift_checker.py filename container
 
-            2: Compare local file with object having a different name or path
-               Example: ./swift_checker.py filename container object_name
+            2: Example: Compare local file with object having a different name or path
+               
+               ./swift_checker.py filename container object_name
         
         Directory Comparison:
 
-            3: Compare files/folders contained within local directory with objects in swift container
-               Example: ./swift_checker.py /absolute_path/to_my_files container 
+            3: Example: Recursively compare all files contained within a local directory with objects in swift container
+               
+               ./swift_checker.py /absolute_path/to_my_files container 
 
-            4: Compare files/folders contained within path with objects in swift container specifying object prefix
-               Example: ./swift_checker.py /path_to_my_files container /my_objects_start_with_this_prefix/
+            4: Example: Recursively compare all files contained within a local directory with objects in swift container
+               specifying object prefix
+
+               ./swift_checker.py /absolute_path/to_my_files container my_objects_start_with/this/prefix/or/path
 
     ''')
 
