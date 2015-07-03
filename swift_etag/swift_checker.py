@@ -15,8 +15,8 @@
 #              local file against the external swift object
 #
 #              SwiftChecker supports full directory scanning, meaning each file
-#              in a specfied
-# directory is compared against objects stored in a swift container.
+#              in a specfied directory is compared against objects stored in
+#              a swift container.
 
 import hashlib
 import sys
@@ -403,12 +403,12 @@ def main():
             print " "
 
     # Result summary
-        print "Summary:"
-        print ""
+        print "Summary:\n"
         print "Matches:", len(jobs) - errors, "/", len(jobs)
+
         for f in files_succeeded:
             print f
-        print ""
+
         print "Fails:", errors, "/", len(jobs)
         for f in files_failed:
             print f
@@ -435,8 +435,6 @@ def main():
                 print "Fail: ", args.path
 
     exit
-
-    # print sc.get_account()[1]
 
 if __name__ == "__main__":
     main()
