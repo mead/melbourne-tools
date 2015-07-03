@@ -2,6 +2,7 @@
 
 #Name: SwiftChecker
 #Author: Justin Mammarella
+#Email: justin.mammarella@unimelb.edu.au
 #Organisation: University of Melbourne
 #Date: 01/06/2015
 #Description: Compare local files or folders with objects stored in swift containers 
@@ -38,8 +39,7 @@ class swift_obj:
 
 def raise_error(error_msg):
     print error_msg
-    exit
-    #sys.exit(1)
+    sys.exit(1)
 
 def display_break(c):
     width = len(OUTPUT_FORMAT.format("","","","","",""))
@@ -49,7 +49,6 @@ def display_header():
     display_break('=')
     display_output("", "", "Local File", "Swift Object")
     display_break('=')
-#print header
 
 def display_output(column1,column2,column3,column4):
     print OUTPUT_FORMAT.format(column1, column2, "|",  column3, " | ", column4)
@@ -175,10 +174,8 @@ def split(filename,segment_size, segment_container):
             else:
                 display_output("Err: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
 
-        #os.remove(segment_filename)
         segment_count = segment_count + 1
      
-    #print "Concatinated Etags: " + hash
     m = hashlib.md5()
     m.update(hash)
     
@@ -190,7 +187,6 @@ def split(filename,segment_size, segment_container):
 
 def compare_file_with_object(sc,filename,container, objectname):
         
-    #print sc.head_object(args.container, args.object)
     try:
         swift_etag = sc.head_object(container, objectname)['etag']
     #If the object has a manifest, then it is a segmented file
@@ -257,12 +253,13 @@ def arg_handling():
         
         Directory Comparison:
 
-            3: Example: Recursively compare all files contained within a local directory with objects in swift container
+            3: Example: Recursively compare all files contained within a local directory with 
+               objects in swift container
                
                ./swift_checker.py /absolute_path/to_my_files container 
 
-            4: Example: Recursively compare all files contained within a local directory with objects in swift container
-               specifying object prefix
+            4: Example: Recursively compare all files contained within a local directory with 
+               objects in swift container specifying object prefix
 
                ./swift_checker.py /absolute_path/to_my_files container my_objects_start_with/this/prefix/or/path
 
@@ -270,14 +267,19 @@ def arg_handling():
 
 
 )
-    parser.add_argument('-c','-credentials',help='Full path to openrc file to read OpenStack/Swift authentication credentials from')
-    parser.add_argument('-v',help="Verbose mode: Displays the md5 hashes of each file and object. Display ETag calculation",action='store_true')
-    parser.add_argument('-vv',help="Very Verbose mode: Verbose mode + display the md5 hashes of individual segments",action='store_true')
+    parser.add_argument('-c','-credentials',help='Full path to openrc file to read OpenStack/Swift \
+                        authentication credentials from')
+    parser.add_argument('-v',help="Verbose mode: Displays the md5 hashes of each file and object.\
+                        Display ETag calculation",action='store_true')
+    parser.add_argument('-vv',help="Very Verbose mode: Verbose mode + display the md5 hashes of \
+                        individual segments",action='store_true')
 
-    parser.add_argument('path',help='The full path to a file or directory that you would like to check against a swift object or container')
+    parser.add_argument('path',help='The full path to a file or directory that you would like to \
+                        check against a swift object or container')
     parser.add_argument('container',help='Name of the Swift container to check')
-    parser.add_argument('object_or_path', help='''Optional: For file comparison this is the specific object name in swift to compare against. 
-                For directory comparison, this is an optional prefix/path to append to the beggining of file names during comparison''',nargs='?')
+    parser.add_argument('object_or_path', help='''Optional: For file comparison this is the specific \
+                        object name in swift to compare against. For directory comparison, this is an \
+                        optional prefix/path to append to the beggining of file names during comparison''',nargs='?')
 
     return parser
 
