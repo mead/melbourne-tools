@@ -8,11 +8,13 @@
 #             SwiftChecker detects whether or not a swift object is stored as a segmented
 #             object. If the object is segmented, the local file is segmeneted and 
 #             the individual md5 hashes for each segment are calculated. The swift
-#             ETag value is also calculated locally.
-#             These values are used to compare the local file against the external swift
-#             object
-#             The script supports full directory scanning. Meaning, each file in a specfied
-#             directory is compared against a objects stored in a swift container.
+#             ETag value is also calculated locally, by hashing a concatinated string of 
+#             the segement hashes.
+#             The ETag and segment hashes are used to compare the local file against the 
+#             external swift object
+#
+#             SwiftChecker supports full directory scanning. Meaning, each file in a specfied
+#             directory is compared against objects stored in a swift container.
 
 import hashlib
 import sys
@@ -166,11 +168,12 @@ def split(filename,segment_size, segment_container):
         md5_seg = md5hash.hexdigest()
         hash = hash + md5_seg
 
-        if md5_seg == segment_container[segment_count].object_hash:
-            display_output("Seg: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
+        if verbose_mode == 2:
+            if md5_seg == segment_container[segment_count].object_hash:
+                display_output("Seg: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
                   
-        else:
-            display_output("Err: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
+            else:
+                display_output("Err: ", segment_count, segment_container[segment_count].object_hash, md5_seg)
 
         #os.remove(segment_filename)
         segment_count = segment_count + 1
@@ -178,8 +181,11 @@ def split(filename,segment_size, segment_container):
     #print "Concatinated Etags: " + hash
     m = hashlib.md5()
     m.update(hash)
-    display_break('-')
-    display_output("MD5:","", filehash.hexdigest(),"")  
+    
+    if verbose_mode == 2:
+        display_break('-')
+        display_output("MD5:","", filehash.hexdigest(),"")  
+    
     return m.hexdigest()
 
 def compare_file_with_object(sc,filename,container, objectname):
@@ -187,14 +193,12 @@ def compare_file_with_object(sc,filename,container, objectname):
     #print sc.head_object(args.container, args.object)
     try:
         swift_etag = sc.head_object(container, objectname)['etag']
-
     #If the object has a manifest, then it is a segmented file
-        if 'x-object-manifest' in sc.head_object(container, objectname):
-            print "Local File: ", os.path.abspath(filename)
-            print "Swift Object: ", objectname
-            print ""          
-            print "Calculating Segments: "
-            display_header()
+        if 'x-object-manifest' in sc.head_object(container, objectname):           
+            if verbose_mode == 2:
+                print "Calculating Segments: "
+            if verbose_mode != 0:
+                display_header()
 
         #Get thesegment container name so that we can list the segments for the object
 
@@ -211,17 +215,19 @@ def compare_file_with_object(sc,filename,container, objectname):
             
         else:
     #Calculate the md5hash locally and compare against the ETag.
-            display_output("Test: ","", os.path.abspath(filename), objectname) 
             local_hash = md5sum(filename)
     
         swift_etag = swift_etag.strip('"')
-        display_output("Etag:","", swift_etag, local_hash)
-        display_break("-")
+
+        if verbose_mode == 1:
+            display_output("ETag:","", swift_etag, local_hash)
+            display_break("-")
         
         if swift_etag == local_hash:
             return 0
         else:
             return 1
+
     except:
         print sys.exc_info()
         error_dict = vars(sys.exc_info()[1])
@@ -260,6 +266,8 @@ def arg_handling():
 
 )
     parser.add_argument('-c','-credentials',help='Full path to openrc file to read OpenStack/Swift authentication credentials from')
+    parser.add_argument('-v',help="Verbose mode: Displays the md5 hashes of each file and object. Display ETag calculation",action='store_true')
+    parser.add_argument('-vv',help="Very Verbose mode: Verbose mode + display the md5 hashes of individual segments",action='store_true')
 
     parser.add_argument('path',help='The full path to a file or directory that you would like to check against a swift object or container')
     parser.add_argument('container',help='Name of the Swift container to check')
@@ -272,6 +280,15 @@ def main():
 
     args = arg_handling().parse_args()
     
+    #Determine the output verbosity from the input args.
+    global verbose_mode
+    
+    verbose_mode = 0
+    if args.v:
+        verbose_mode = 1
+    if args.vv:
+        verbose_mode = 2
+    #Establish a connection to Swift
     try:
         sc = swift_client(args.c)
     except:
@@ -280,7 +297,6 @@ def main():
     savedPath = os.getcwd()
 
     #If path is a directory, then scan all files and folders in directory recursively.
-    head_dir = os.path.basename(os.path.normpath(args.path))
     
     errors = 0
     jobs = []
@@ -290,7 +306,7 @@ def main():
     if os.path.isdir(args.path):
         
         os.chdir(os.path.abspath(args.path))
-            
+        print ""    
         print "Checking files in local directory:", os.getcwd()
         for root, dirs, files in os.walk('.', topdown=True):
             for name in files:
@@ -315,42 +331,48 @@ def main():
             filecount=filecount+1
             print "Processing:", filecount, "/", len(jobs)
      #Check the current file with swift object
+            print "Local File: ", j[1]
+            print "Swift Object: ", j[3]
+            print ""   
+        
             if compare_file_with_object(j[0],j[1],j[2],j[3]) == 0:
-                print "Okay: ", j[1]
+                print "Match: ", j[1]
                 files_succeeded.append(j[1])
             else:
                 errors = errors + 1 
                 print "Fail: ", j[1]
                 files_failed.append(j[1])
             print " "
+
+     #Result summary
+        print "Summary:"
+        print ""
+        print "Matches:", len(jobs) - errors, "/", len(jobs)
+        for f in files_succeeded:
+            print f
+        print ""
+        print "Fails:", errors, "/", len(jobs)
+        for f in files_failed:
+            print f
+        print ""
         
     #If path is a file then check only the file
     elif os.path.isfile(args.path):
         print "Checking file"
-        display_header() 
+        if verbose_mode > 0:
+            display_header()
         if not args.object_or_path:
             if compare_file_with_object(sc, args.path, args.container, os.path.split(args.path)[1]) == 0:
-                print "Okay: ", args.path
+                print "Match: ", args.path
             else:
                 print "Fail: ", args.path
                 errors = errors + 1
         else:
             if compare_file_with_object(sc, args.path, args.container, args.object_or_path) == 0:
-                print "Okay: ", args.path
+                print "Match: ", args.path
             else:
                 errors = errors + 1
                 print "Fail: ", args.path
-    #Result summary
-    print "Summary:"
-    print ""
-    print "Matches:", len(jobs) - errors, "/", len(jobs)
-    for f in files_succeeded:
-        print f
-    print ""
-    print "Fails:", errors, "/", len(jobs)
-    for f in files_failed:
-        print f
-    print ""
 
     exit
 
