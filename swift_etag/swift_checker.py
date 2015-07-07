@@ -375,7 +375,7 @@ def main():
                     cur_object = os.path.join(
                         root.lstrip('.').lstrip('/').lstrip('\\'), name)
                 if os.name == 'nt':
-                    cur_object = cur_object.replace('/','\\')
+                    cur_object = cur_object.replace('\\','/')
     # Store the job in an array to be processed once directory scanning
     # complete
                 j = [sc, os.path.abspath(
