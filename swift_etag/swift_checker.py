@@ -364,6 +364,7 @@ def main():
             for name in files:
                 # If a path is specified in the 3rd argument, append
                 # it as a path to the start of the swift object name
+                print root
                 if args.object_or_path:
                     cur_object = os.path.join(args.object_or_path.lstrip('.')
                                               .lstrip('/').lstrip('\\'),
@@ -373,6 +374,8 @@ def main():
                 else:
                     cur_object = os.path.join(
                         root.lstrip('.').lstrip('/').lstrip('\\'), name)
+                if os.name == 'nt':
+                    cur_object = cur_object.replace('/','\\')
     # Store the job in an array to be processed once directory scanning
     # complete
                 j = [sc, os.path.abspath(
