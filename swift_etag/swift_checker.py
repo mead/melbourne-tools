@@ -267,7 +267,7 @@ def arg_handling():
     parser = argparse.ArgumentParser(
         prog='swift_checker.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='''Swift checker test''',
+        description='''SwiftChecker:''',
         epilog=textwrap.dedent('''\
 
         Single File Comparisons:
