@@ -364,18 +364,18 @@ def main():
             for name in files:
                 # If a path is specified in the 3rd argument, append
                 # it as a path to the start of the swift object name
-                print root
+                cur_dir = root
+                cur_dir = cur_dir.lstrip('.').lstrip('/').lstrip('\\') 
+                if os.name == 'nt':
+                    cur_dir = cur_dir.replace('\\','/')
                 if args.object_or_path:
                     cur_object = os.path.join(args.object_or_path.lstrip('.')
                                               .lstrip('/').lstrip('\\'),
-                                              root.lstrip('.').lstrip('/')
-                                              .lstrip('\\'), name)
+                                              cur_dir, name)
     # Use absolute path as swift object name
                 else:
                     cur_object = os.path.join(
-                        root.lstrip('.').lstrip('/').lstrip('\\'), name)
-                if os.name == 'nt':
-                    cur_object = cur_object.replace('\\','/')
+                        cur_dir, name)
     # Store the job in an array to be processed once directory scanning
     # complete
                 j = [sc, os.path.abspath(
