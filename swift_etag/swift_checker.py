@@ -17,6 +17,8 @@
 #              SwiftChecker supports full directory scanning, meaning each file
 #              in a specfied directory is compared against objects stored in
 #              a swift container.
+#
+#              OS: Linux & Windows
 
 import hashlib
 import sys
@@ -217,7 +219,7 @@ def compare_file_with_object(sc, filename, container, objectname):
                 display_header()
 
         # Get thesegment container name so that we can list the segments for
-        # the object
+        # the objectv
 
             segment_container_name = sc.head_object(
                 container, objectname)['x-object-manifest'].split('/')[0]
@@ -243,7 +245,7 @@ def compare_file_with_object(sc, filename, container, objectname):
 
         swift_etag = swift_etag.strip('"')
 
-        if verbose_mode == 1:
+        if verbose_mode >= 1:
             display_output("ETag:", "", swift_etag, local_hash)
             display_break("-")
 
@@ -390,32 +392,39 @@ def main():
     # Start processing each job
         for j in jobs:
             filecount = filecount + 1
-            print "Processing:", filecount, "/", len(jobs)
+            if verbose_mode > 0:
+                print "Processing:", filecount, "/", len(jobs)
     # Check the current file with swift object
-            print "Local File: ", j[1]
-            print "Swift Object: ", j[3]
-            print ""
+                print "Local File: ", j[1]
+                print "Swift Object: ", j[3]
+                print ""
 
             if compare_file_with_object(j[0], j[1], j[2], j[3]) == 0:
-                print "Match: ", j[1]
+                if verbose_mode > 0:
+                    print "Pass: ", j[1]
                 files_succeeded.append(j[1])
             else:
                 errors = errors + 1
-                print "Fail: ", j[1]
+                if verbose_mode > 0:
+                    print "Fail: ", j[1]
                 files_failed.append(j[1])
-            print " "
 
     # Result summary
-        print "Summary:\n"
-        print "Matches:", len(jobs) - errors, "/", len(jobs)
+
+        print ""
+        print "Files Processed:\n"
 
         for f in files_succeeded:
-            print f
+            print "Pass: ", f
 
-        print "Fails:", errors, "/", len(jobs)
         for f in files_failed:
-            print f
+            print "Fail: ", f
+        
         print ""
+        print "Summary:\n"
+        print "Matches:", len(jobs) - errors, "/", len(jobs)
+        print "Fails:", errors, "/", len(jobs)
+    
 
     # If path is a file then check only the file
     elif os.path.isfile(args.path):
@@ -425,14 +434,14 @@ def main():
         if not args.object_or_path:
             if compare_file_with_object(sc, args.path, args.container,
                                         os.path.split(args.path)[1]) == 0:
-                print "Match: ", args.path
+                print "Pass: ", args.path
             else:
                 print "Fail: ", args.path
                 errors = errors + 1
         else:
             if compare_file_with_object(sc, args.path, args.container,
                                         args.object_or_path) == 0:
-                print "Match: ", args.path
+                print "Pass: ", args.path
             else:
                 errors = errors + 1
                 print "Fail: ", args.path
