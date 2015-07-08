@@ -6,11 +6,11 @@
 # Organisation: University of Melbourne
 # Date: 01/06/2015
 # Description: Compare local files or folders with objects stored in swift
-#              containers SwiftChecker detects whether or not a swift object is
-#              stored as a segmented object. If the object is segmented, the
+#              containers. SwiftChecker detects whether or not a swift object
+#              is stored as a segmented object. If the object is segmented, the
 #              local file is segmeneted and the individual md5 hashes for each
 #              segment are calculated. The swift ETag value is also calculated
-#              locally, by hashing a concatinated string of the segement
+#              locally by hashing a concatinated string of the segement
 #              hashes. The ETag and segment hashes are used to compare the
 #              local file against the external swift object
 #
@@ -18,7 +18,8 @@
 #              in a specfied directory is compared against objects stored in
 #              a swift container.
 #
-#              OS: Linux & Windows
+#              OS Supported: Linux, OSX & Windows
+#              Requires: python-keystoneclient & python-swiftclient
 
 import hashlib
 import sys
@@ -229,7 +230,7 @@ def compare_file_with_object(sc, filename, container, objectname):
             display_header()
 
         # Get thesegment container name so that we can list the segments for
-        # the objectv
+        # the object
 
         segment_container_name = sc.head_object(
             container, objectname)['x-object-manifest'].split('/')[0]
@@ -295,7 +296,8 @@ local directory with
 
             4: Example: Recursively compare all files contained within a\
 local directory with objects
-                        in swift container specifying object prefix
+                        in swift container specifying the object name \
+prefix
 
                ./swift_checker.py /absolute_path/to_my_files container \
 my_objects_start_with/this/prefix/or/path
