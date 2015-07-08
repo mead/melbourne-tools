@@ -135,7 +135,7 @@ def split(filename, segment_size, segment_container):
         f = open(filename, 'rb')
     except (OSError, IOError), e:
         raise_error("Could not open file")
-
+        exit
     try:
         filesize = os.path.getsize(filename)
     except (OSError), e:
@@ -211,49 +211,6 @@ def compare_file_with_object(sc, filename, container, objectname):
 
     try:
         swift_etag = sc.head_object(container, objectname)['etag']
-    # If the object has a manifest, then it is a segmented file
-        if 'x-object-manifest' in sc.head_object(container, objectname):
-            if verbose_mode == 2:
-                print "Calculating Segments: "
-            if verbose_mode != 0:
-                display_header()
-
-        # Get thesegment container name so that we can list the segments for
-        # the objectv
-
-            segment_container_name = sc.head_object(
-                container, objectname)['x-object-manifest'].split('/')[0]
-            segment_container = []
-    # List all the objects in the container and store the assosciated hash,
-    # name, bytes in a data structure
-            container_obj_list = sc.get_container(segment_container_name,
-                                                  full_listing='True')[1]
-            for o in container_obj_list:
-                x = swift_obj(o['name'], o['hash'], o['bytes'])
-                segment_container.append(x)
-    # Begin the segmentation locally, using the segment size obtianed from
-    # the first object in the segment container
-    # Supply the segment_container data structure such that comparisons can be
-    # made between calculated hash and swift value.
-            local_hash = split(
-                filename, segment_container[0].object_bytes, segment_container)
-    # The object has no manifest, therefore it is not segmented.
-
-        else:
-            # Calculate the md5hash locally and compare against the ETag.
-            local_hash = md5sum(filename)
-
-        swift_etag = swift_etag.strip('"')
-
-        if verbose_mode >= 1:
-            display_output("ETag:", "", swift_etag, local_hash)
-            display_break("-")
-
-        if swift_etag == local_hash:
-            return 0
-        else:
-            return 1
-
     except:
         print sys.exc_info()
         error_dict = vars(sys.exc_info()[1])
@@ -263,6 +220,54 @@ def compare_file_with_object(sc, filename, container, objectname):
         else:
             print error_dict
             return 1
+    try:
+        head_object = sc.head.object(container, objectname)
+    except:
+        print "Error"
+        return 1
+# If the object has a manifest, then it is a segmented file
+    if 'x-object-manifest' in head_object:
+        if verbose_mode == 2:
+            print "Calculating Segments: "
+        if verbose_mode != 0:
+            display_header()
+
+        # Get thesegment container name so that we can list the segments for
+        # the objectv
+
+        segment_container_name = sc.head_object(
+            container, objectname)['x-object-manifest'].split('/')[0]
+        segment_container = []
+    # List all the objects in the container and store the assosciated hash,
+    # name, bytes in a data structure
+        container_obj_list = sc.get_container(segment_container_name,
+                                                  full_listing='True')[1]
+        for o in container_obj_list:
+            x = swift_obj(o['name'], o['hash'], o['bytes'])
+            segment_container.append(x)
+    # Begin the segmentation locally, using the segment size obtianed from
+    # the first object in the segment container
+    # Supply the segment_container data structure such that comparisons can be
+    # made between calculated hash and swift value.
+        local_hash = split(
+            filename, segment_container[0].object_bytes, segment_container)
+    # The object has no manifest, therefore it is not segmented.
+
+    else:
+            # Calculate the md5hash locally and compare against the ETag.
+        local_hash = md5sum(filename)
+
+    swift_etag = swift_etag.strip('"')
+
+    if verbose_mode >= 1:
+        display_output("ETag:", "", swift_etag, local_hash)
+        display_break("-")
+
+    if swift_etag == local_hash:
+        return 0
+    else:
+        return 1
+
 
 
 def arg_handling():
@@ -312,7 +317,8 @@ my_objects_start_with/this/prefix/or/path
     parser.add_argument('-vv', help="Very Verbose mode: Verbose mode + \
                         display the md5 hashes of \
                         individual segments", action='store_true')
-
+    parser.add_argument('-w', help="Use Windows style backslashes for \
+                        object names", action='store_true')
     parser.add_argument('path', help='The full path to a file or directory \
                         that you would like to \
                         check against a swift object or container')
@@ -323,7 +329,7 @@ my_objects_start_with/this/prefix/or/path
                         object name in swift to compare against. \
                         For directory comparison, this is an \
                         optional prefix/path to append to the \
-                        beggining of file names during\
+                        begining of file names during\
                         comparison''', nargs='?')
 
     return parser
@@ -335,8 +341,8 @@ def main():
 
     # Determine the output verbosity from the input args.
     global verbose_mode
-
     verbose_mode = 0
+    
     if args.v:
         verbose_mode = 1
     if args.vv:
@@ -368,8 +374,13 @@ def main():
                 # it as a path to the start of the swift object name
                 cur_dir = root
                 cur_dir = cur_dir.lstrip('.').lstrip('/').lstrip('\\') 
+                
+                #Replace windows backslashes with unix style forward slash    
+                
                 if os.name == 'nt':
                     cur_dir = cur_dir.replace('\\','/')
+                
+                #Add job to queue                
                 if args.object_or_path:
                     cur_object = os.path.join(args.object_or_path.lstrip('.')
                                               .lstrip('/').lstrip('\\'),
@@ -378,6 +389,9 @@ def main():
                 else:
                     cur_object = os.path.join(
                         cur_dir, name)
+
+                if args.w:
+                    cur_object = cur_object.replace('/','\\')
     # Store the job in an array to be processed once directory scanning
     # complete
                 j = [sc, os.path.abspath(
@@ -393,7 +407,7 @@ def main():
         for j in jobs:
             filecount = filecount + 1
             if verbose_mode > 0:
-                print "Processing:", filecount, "/", len(jobs)
+                print "\nProcessing:", filecount, "/", len(jobs)
     # Check the current file with swift object
                 print "Local File: ", j[1]
                 print "Swift Object: ", j[3]
