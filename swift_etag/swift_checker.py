@@ -220,11 +220,7 @@ def compare_file_with_object(sc, filename, container, objectname):
         else:
             print error_dict
             return 1
-    try:
-        head_object = sc.head.object(container, objectname)
-    except:
-        print "Error"
-        return 1
+    head_object = sc.head_object(container, objectname)
 # If the object has a manifest, then it is a segmented file
     if 'x-object-manifest' in head_object:
         if verbose_mode == 2:
