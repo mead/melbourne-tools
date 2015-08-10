@@ -217,14 +217,14 @@ getdisks() {
     #rsync directly to node
     echome "Direct transfer"
         if [ ! -e $mount_dir_0/disk ]; then 
-                rsync -Pvvz -e "ssh -A -i $identity_file" root@$node:$instance_dir/$id/disk $mount_dir_0/
+                rsync -Pvvz -e "ssh -A -i $identity_file" root@$node:$instance_dir/disk $mount_dir_0/
                 #if [ "$?" -eq "0" ]; then
                   #  cleanUp 5 'Rsync Failed: sudo rsync -Pvz -e "ssh -i $identity_file" root@$node:$disk_image_dir/$id/disk $mount_dir_0/'
                 #fi;
 
         fi
         if [ ! -e $mount_dir_0/disk.local ]; then
-                rsync -Pvvz -e "ssh -A -i $identity_file" root@$node:$instance_dir/$id/disk.local $mount_dir_0/
+                rsync -Pvvz -e "ssh -A -i $identity_file" root@$node:$instance_dir/disk.local $mount_dir_0/
                 #if [ "$?" -eq "0" ]; then
                   #  cleanUp 5 'Rsync Failed: sudo rsync -Pvz -e "ssh -i $identity_file" root@$node:$disk_image_dir/$id/disk $mount_dir_0/'
                 #fi;
