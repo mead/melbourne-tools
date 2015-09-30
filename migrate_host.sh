@@ -27,7 +27,7 @@ while read -r vm; do
                         success=1
                         echo "$vm succesfully migrated to $new_host" 
                     else
-                        echo "vm failed migrating"
+                        echo "$vm failed migrating"
                         success=0
                     fi;
             
@@ -44,7 +44,6 @@ while read -r vm; do
                 exit
             fi
     done
-    echo "Migrated: $vm from $SOURCE to $DEST"
 
 done < <(cat hosts_to_migrate)
 
