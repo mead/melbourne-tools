@@ -6,6 +6,8 @@ import os
 import sys
 import argparse
 from keystone_functions import *
+from compute_functions import *
+DEBUG=True
 
 def config_extract(config_file):
     auth_username = ""
@@ -56,7 +58,12 @@ def main():
 
     perso_cred = config_extract(args.persocred)
     admin_cred = config_extract(args.admincred)
-    keystone_authenticate(perso_cred)
+    try:
+        token = keystone_authenticate(perso_cred)
+    except ValueError as err:
+        print err.args
+    print token
+    volume_create(perso_cred, token)
 if __name__ == "__main__":
     main()
 
