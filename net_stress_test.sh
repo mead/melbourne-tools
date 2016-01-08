@@ -1,6 +1,6 @@
 #!/bin/bash
 #Launches N * VMs on a host and checks to see if they have network
-#Useful for determining inconsitant network behaviour or even metadata
+#Useful for determining inconsitent network behaviour or even lack of metadata
 
 HOST=$1
 CELL=melbourne-qh2-uom
