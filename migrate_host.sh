@@ -23,15 +23,22 @@ failed=0
 unknown=0
 while read -r vm; do
     
+    flavor=$(nova show $vm | grep flavor | cut -f3 -d'|' | awk '{ print $1 }')
+
+    echo "Attempting to migrate: $vm from $SOURCE to $DEST"
+
     nova live-migration $vm $DEST
-    
     complete=0
+    
+    #if [ "$flavor" != "m1.small" ]; then
+    #    echo -e "\Skipping flavor not small"
+    #    complete=1
+    #fi
+
     count=0
     migrating=0
     success=0
 
-    echo "Attempting to migrate: $vm from $SOURCE to $DEST"
-    
     while [ $complete -eq 0 ]; do
 
             spinner=$(echo -n $spinner | tail -c 1)$(echo -n $spinner | head -c 3)                    
@@ -41,7 +48,7 @@ while read -r vm; do
     
             task_state=$(nova show $vm | grep OS-EXT-STS:task_state | cut -f3 -d '|' | tr -d ' ')
             vm_state=$(nova show $vm | grep OS-EXT-STS:vm_state | cut -f3 -d '|' | tr -d ' ')
-    
+            
             if [ "$vm_state" == "error" ]; then
                 echo -e "\nMigration Error"
                 nova show $vm
@@ -64,24 +71,25 @@ while read -r vm; do
             
                 fi
             fi
-
-            if [ "$task_state" == "migrating" ]; then
-                echo -ne "\rmigrating $(echo -n $spinner | head -c 1)"
-                migrating=1
-            fi
-            count=$(expr $count + 1) 
-            #If the task state of the migrating instance doesn't change within 5 seconds, 
-            #then it likely error'd too fast
-            if [ $count -gt 5 ] && [ "$task_state" != "migrating" ]; then
-                echo -e "\nInstance migration failed instantaneously, check compute host"
-                failed=`expr $failed + 1`
-                complete=1
-            fi
-            if [ $count -gt 300 ]; then
-                echo -e "\nMigration Timed Out: Manually Check $vm"
-                unknown=`expr $unknown + 1`
-                complete=1
-            fi
+            if [ "$success" != "1" ]; then
+                if [ "$task_state" == "migrating" ]; then
+                    echo -ne "\rmigrating $(echo -n $spinner | head -c 1)"
+                    migrating=1
+                fi
+                count=$(expr $count + 1) 
+                #If the task state of the migrating instance doesn't change within 5 seconds, 
+                #then it likely error'd too fast
+                if [ $count -gt 5 ] && [ "$task_state" != "migrating" ]; then
+                    echo -e "\nInstance migration failed instantaneously, check compute host"
+                    failed=`expr $failed + 1`
+                    complete=1
+                fi
+                if [ $count -gt 300 ]; then
+                    echo -e "\nMigration Timed Out: Manually Check $vm"
+                    unknown=`expr $unknown + 1`
+                    complete=1
+                fi
+            fi 
     done
 
 done < <(cat hosts_to_migrate)
