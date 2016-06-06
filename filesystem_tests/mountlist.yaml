@@ -1,0 +1,7 @@
+mounts:
+  nfs_test1:
+    protocol: 'nfs'
+    mount_point: '/mnt/nfs_test1'
+    share: 'nagios'
+    host: 'research-nfs.storage.unimelb.edu.au'
+    options: 'vers=4.0'
