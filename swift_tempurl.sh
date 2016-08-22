@@ -3,7 +3,7 @@
 #Date: June 2016
 #Description: Generate a TempURL for swift download
 
-if [ -z $@ ]; then
+if [ -z '$@' ]; then
   echo "Usage:"
   echo "$(basename $0) <CONTAINER> <OBJECT_PATH>"
   exit 1
