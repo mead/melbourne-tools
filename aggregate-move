@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# move host between melb. aggregates
+
+if [ "$1" = "-h" -o "$1" = "--help" -o "$1" = "-?" -o $# -lt 4 ]
+then
+  echo "usage: $(basename $0) <qh2|qh2-uom|np> <src-aggr> <dst-aggr> <host>"
+  exit
+fi
+
+case "$1" in
+  "qh2"|"qh2-uom"|"np")
+    openstack aggregate remove host 'nectar!'$1'@'$2 $4
+    openstack aggregate add host 'nectar!'$1'@'$3 $4
+    ;;
+  *)
+    echo "invalid name $1"
+    exit
+    ;;
+esac
+

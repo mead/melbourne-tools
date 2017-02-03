@@ -1,0 +1,3 @@
+#!/bin/bash
+
+curl -s -G 'http://puppetdb.rc.nectar.org.au:8080/v4/events' --data-urlencode 'query=["and", ["=", "latest-report?", true], ["=", "status", "failure"]]'

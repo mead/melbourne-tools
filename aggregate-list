@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# lists aggregates/hosts belonging to an aggregate
+
+if [ "$1" = "" ]
+then
+  openstack aggregate list | /bin/egrep 'qh2|np|ID|---'
+  exit
+fi
+
+if [ "$1" = "-h" -o "$1" = "--help" -o "$1" = "-?" -o $# -lt 2 ]
+then
+  echo "usage: $(basename $0) [-l] <qh2|qh2-uom|np> <aggr-name>"
+  exit
+fi
+
+JQARGS='-c'
+if [ "$1" = "-l" ]
+then
+  JQARGS=''
+  shift
+fi
+
+case "$1" in
+  "qh2"|"qh2-uom"|"np")
+    openstack aggregate show -f json -c hosts 'nectar!'$1'@'$2
+    ;;
+  *)
+    echo "invalid name $1"
+    exit
+    ;;
+esac | jq $JQARGS '.[]' | sed -e 's/\[//g' -e 's/\]//g' -e 's/"//g' -e 's/,/ /g' -e 's/^ *//' | grep -v '^$'
