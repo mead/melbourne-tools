@@ -35,3 +35,8 @@ pe-get-hosts blockdevice_sda_model/INTEL%20SSDSC2BX20 | awk '/certname/{print $3
 
 # get any changes in the latest report for a host (if there are any)
 pe-get-host-changes <hostname>
+
+# examining resources
+pe-get-resources qh2-rcc5 User/nagios
+# comparing hosts (sorting still needs something)
+diff -y <(pe-get-resources qh2-rcc5 | jq 'sort_by(.resource)') <(pe-get-resources qh2-rcc6 | jq 'sort_by(.resource)')

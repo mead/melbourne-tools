@@ -11,5 +11,5 @@ fi
 for h in $*
 do
   echo -n "$h : "
-  openstack hypervisor show -f json -c aggregates $(openstack hypervisor list -f value -c ID --matching ${h}) | jq -c '.[]'
+  openstack hypervisor show -f json -c aggregates $(openstack hypervisor list -f value -c ID --matching ${h}\.) | jq -c '.[]'
 done
